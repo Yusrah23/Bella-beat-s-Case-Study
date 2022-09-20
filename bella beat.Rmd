@@ -1,0 +1,250 @@
+---
+output:
+  html_document: default
+  word_document: default
+  pdf_document: default
+---
+---
+title: "Bellabeat Case Study"
+author: "Yusrah"
+date: "2022-09-17"
+output: pdf_document
+
+## Introduction
+I am a junior data analyst working on the marketing analyst team at Bellabeat, a high-tech manufacturer of health-focused products for women. Bellabeat is a successful small company, but they have the potential to become a larger player in the global smart device market.At the end of this analysis I will present my insights and recommendation to the executive team to help them guide marketing strategy for the company.
+
+#### Bellabeat Products
+
+○ Bellabeat app: The Bellabeat app provides users with health data related to their activity, sleep, stress, menstrual cycle, and mindfulness habits. This data can help users better understand their current habits and make healthy decisions. The Bellabeat app connects to their line of smart wellness products.
+
+○ Leaf: Bellabeat’s classic wellness tracker can be worn as a bracelet, necklace, or clip. The Leaf tracker connects to the Bellabeat app to track activity, sleep, and stress.
+
+○ Time: This wellness watch combines the timeless look of a classic timepiece with smart technology to track user activity, sleep, and stress. The Time watch connects to the Bellabeat app to provide you with insights into your daily wellness.
+
+○ Spring: This is a water bottle that tracks daily water intake using smart technology to ensure that you are appropriately hydrated throughout the day. The Spring bottle connects to the Bellabeat app to track your hydration levels.
+
+○ Bellabeat membership: Bellabeat also offers a subscription-based membership program for users.Membership gives users 24/7 access to fully personalized guidance on nutrition, activity, sleep, health and beauty, and mindfulness based on their lifestyle and goals.
+
+## Ask
+
+I've been asked to analyze smart device usage data in order to gain insight into how consumers use non-Bellabeat smart devices. 
+
+## Prepare
+
+I made use of the FitBit Fitness Tracker Data for this case study and the data set was stored in kaggle. It contained 18 CSV documents.Every user has a unique ID and different rows since data is tracked by day and time. Each document represents different quantitative data tracked by Fitbit. The data is considered long since each row is one time point per subject, so each subject will have data in multiple rows.
+
+#### Data integrity
+
+The dataset set contains information about 33 users, this sample size is very small and we can see sampling bias here.
+
+## Process
+
+#### installing packages
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+install.packages ("ggplot2")
+
+install.packages ("tidyverse")
+
+install.packages("scales")
+
+install.packages("lubridate")
+
+install.packages("janitor")
+
+install.packages("dplyr")
+
+install.packages("here")
+
+install.packages("skimr")
+
+#### Loading packages
+```{r}
+library (ggplot2)
+library (tidyverse)
+library (scales)
+library (lubridate)
+library (janitor)
+library (dplyr)
+library (here)
+library (skimr)
+```
+
+#### Importing the datasets
+``` {r}
+daily_activity <- read.csv("dailyActivity_merged.csv")
+hourly_steps <- read.csv("hourlySteps_merged.csv") 
+```
+#### Preview dataset
+```{r}
+head(daily_activity)
+head(hourly_steps)
+```
+```{r}
+str(daily_activity)
+str(hourly_steps)
+```
+#### Cleaning
+Checking for unique value
+```{r}
+length(unique(daily_activity$Id))
+length(unique(hourly_steps$Id))
+```
+Checking for duplicates
+```{r}
+sum(duplicated(daily_activity))
+sum(duplicated(hourly_steps))
+```
+Making column name consistent
+```{r}
+clean_names(head(daily_activity))
+clean_names(head(hourly_steps))
+```
+Formatting to Date data type.
+```{r}
+daily_activity <- daily_activity %>%
+   mutate(ActivityDate = as.Date(ActivityDate, format = "%m/%d/%Y"))
+```
+
+
+
+```{r}
+head(daily_activity)
+head(hourly_steps)
+```
+
+```{r}
+head(daily_activity)
+head(hourly_steps)
+``` 
+Merging both datasets on the Id column
+```{r}
+activities_data <- merge(daily_activity,hourly_steps, by=c("Id"))
+n_distinct(activities_data$Id)
+glimpse(activities_data)
+``` 
+## Analyze and Share
+```{r}
+activities_data %>%
+  select(TotalSteps ,TotalDistance, Calories , StepTotal ) %>%
+  summary()
+```
+
+1.) What is the relationship between activities and the amount of calories burnt
+```{r}
+ggplot(data=activities_data) + 
+  geom_point(mapping =aes(TotalSteps, Calories) ) +labs(title="Relationship between total steps and calories", subtitle="There is an increase in the number of calories burnt as steps increase.")+theme(plot.title = element_text(size = 15),plot.subtitle = element_text(size = 10,color = "green"))
+```
+
+
+2.) What is the average daily steps for each user
+```{r}
+daily_average <- daily_activity %>%
+  group_by(Id) %>%
+  summarise (mean_daily_steps = mean(TotalSteps))
+
+head(daily_average)
+```
+
+
+3.)How active are the different types of users?
+I'll be classifying the users into different types:
+Sedentary - < 5000 steps a day,Lightly active - Between 5000 and 7499 steps a day, Moderately active - Between 7500 and 9999 steps a day, Very active - > 10000 steps a day.
+
+```{r}
+user_type <- daily_average %>%
+  mutate(user_type = case_when(
+    mean_daily_steps < 5000 ~ "sedentary",
+    mean_daily_steps >= 5000 & mean_daily_steps < 7499 ~ "lightly active", 
+    mean_daily_steps >= 7500 & mean_daily_steps < 9999 ~ "moderately active", 
+    mean_daily_steps >= 10000 ~ "very active"
+  ))
+
+head(user_type)
+```
+```{r}
+ggplot(data=user_type) + 
+  geom_bar(mapping =aes(user_type)) +
+  labs(title="User distribution by average daily steps" )
+```
+
+
+4.) What day of the week are the users most active?
+```{r}
+weekday_steps <- activities_data %>%
+  mutate(weekday = weekdays(ActivityDate ))
+
+weekday_steps$weekday <-ordered(weekday_steps$weekday, levels=c("Monday", "Tuesday", "Wednesday", "Thursday","Friday", "Saturday", "Sunday"))
+
+ weekday_steps <-weekday_steps%>%
+  group_by(weekday) %>%
+  summarize (mean_daily_steps = mean(TotalSteps))
+
+head(weekday_steps)
+
+ggplot(weekday_steps) +
+      geom_col(aes(x=weekday, y=mean_daily_steps)) +
+      geom_hline(yintercept = 7500) +
+      labs(title = "Daily steps per weekday",subtitle = "Users meet up with the daily recommended steps except Sunday mainly because it's restday for most people")+theme(plot.title = element_text(size = 15),plot.subtitle = element_text(size = 9,color = "green")) 
+```
+5.) What is the average minutes spent in each active category?
+```{r}
+average_minutes <- activities_data %>%
+  summarise(mean(SedentaryMinutes),mean(FairlyActiveMinutes),mean(LightlyActiveMinutes),mean(VeryActiveMinutes))
+head(average_minutes)
+
+```
+
+We can see that the amount of time users spend being sedentary is quite significant, the users spends about 16.5 hrs a day being sedentary, 3.2hrs being lightly active,13.5 minutes being fairly active and 21.5 minutes being very active.
+
+6.) What hour of the day are the users most active?
+```{r}
+hourly_steps <- activities_data %>%
+  separate(ActivityHour, into = c("date", "time"), sep= " ") %>%
+  mutate(date = ymd(date)) 
+  
+head(hourly_steps)
+```
+```{r}
+order <- c("0:00","1:00","2:00","3:00","4:00","5:00","6:00","7:00","8:00","9:00","10:00","11:00","12:00","13:00","14:00","15:00","16:00","17:00","18:00","19:00","20:00","21:00","22:00","23:00")
+```
+
+
+
+```{r}
+hourly_steps %>%
+  group_by(time) %>%
+  summarize(average_steps = mean(StepTotal))%>%
+  ggplot() +
+  geom_col(mapping = aes(factor(time,level=order), average_steps, fill = average_steps)) +labs(title = "Distribution of average hourly steps", x="", y="",subtitle = "Users most active hours is between 8am - 9pm.")+theme(plot.title = element_text(size = 15),plot.subtitle = element_text(size = 10,color = "green"))  + 
+  scale_fill_gradient(low = "orange", high = "green")+
+  theme(axis.text.x = element_text(angle = 45))
+```
+
+
+## Act
+Key Insights
+
+- There is a positive relationship between the number of steps taken and number of calories burnt.
+
+- Users are consistent with their steps during the week,The most active being Saturday and Least active being Sunday.
+
+- Although the average user is  very active for over 21 minutes, they still spend 85% of their time being sedentary.
+
+- Users actively start their day by 6am and their most active hours is between 8am - 7pm.
+
+## Recommendations
+
+The following recommendations were carefully created to improve bellabeat's marketing strategy:
+
+- Personified notifications : As a result, the CDC recommend that most adults should aim for 10,000 steps per day. Bellabeat to incorporate personified notifications on its app to motivate users to keep moving throughout the day, they should also include number of steps taken and how many more steps that is needed to be taken to get to their daily goals.
+
+- Weekly and Monthly reports : This will keep the users more motivated, bellabeat should provide weekly and monthly report so that the users can know how far they have been going. The app could also send congratulatory messages to those who keep up with their good habits as well as motivational tips to improve incase the user is lagging.
+
+- Discounts : Another way to keep the customers going is to offer special discounts on the different bellabeat's products and their premium membership, especially users that hit daily target at the end of the year.
+
+
+
